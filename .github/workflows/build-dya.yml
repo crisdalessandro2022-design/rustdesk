@@ -122,6 +122,32 @@ jobs:
           done || true
           echo "Inyeccion completada"
 
+      - name: Patch DYA Remote branding
+        shell: bash
+        run: |
+          # App name in Rust (hbb_common submodule gets checked out, patch after)
+          find . -path "*/hbb_common/src/config.rs" | while IFS= read -r f; do
+            sed -i 's|RwLock::new("RustDesk".to_owned())|RwLock::new("DYA Remote".to_owned())|g' "$f"
+            echo "Patched hbb_common: $f"
+          done || true
+
+          # Windows Flutter runner - app name and description
+          sed -i 's|L"RustDesk"|L"DYA Remote"|g' flutter/windows/runner/main.cpp || true
+          sed -i 's|"RustDesk Remote Desktop"|"DYA Remote"|g' flutter/windows/runner/Runner.rc || true
+          sed -i 's|VALUE "ProductName", "RustDesk"|VALUE "ProductName", "DYA Remote"|g' flutter/windows/runner/Runner.rc || true
+          sed -i 's|VALUE "FileDescription", "RustDesk Remote Desktop"|VALUE "FileDescription", "DYA Remote"|g' flutter/windows/runner/Runner.rc || true
+
+          # MSI localization strings
+          sed -i 's|Value="RustDesk"|Value="DYA Remote"|g' res/msi/Package/Language/Package.en-us.wxl || true
+          sed -i 's|RustDesk - Main programs installations|DYA Remote - Main programs installations|g' res/msi/Package/Language/Package.en-us.wxl || true
+          sed -i 's|Removes RustDesk or parts of it|Removes DYA Remote or parts of it|g' res/msi/Package/Language/Package.en-us.wxl || true
+          sed -i 's|Start RustDesk|Start DYA Remote|g' res/msi/Package/Language/Package.en-us.wxl || true
+
+          # is_rustdesk check in common.rs
+          sed -i 's|.eq("RustDesk")|.eq("DYA Remote")|g' src/common.rs || true
+
+          echo "Branding patch completado"
+
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
         with:
@@ -202,7 +228,7 @@ jobs:
       - name: Build MSI installer
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          python preprocess.py --arp --app-name "DYA Remote" -d ../../rustdesk
           nuget restore msi.sln
           msbuild msi.sln `
             -p:Configuration=Release `
