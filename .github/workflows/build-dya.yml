@@ -112,14 +112,15 @@ jobs:
         run: |
           SERVER="${{ secrets.RENDEZVOUS_SERVER }}"
           echo "Inyectando servidor: $SERVER"
-          find . -name "*.rs" | xargs grep -l "rs-ny.rustdesk.com" 2>/dev/null | while read f; do
+          grep -rl "rs-ny.rustdesk.com" --include="*.rs" . 2>/dev/null | while IFS= read -r f; do
             sed -i "s|rs-ny.rustdesk.com|$SERVER|g" "$f"
-            echo "Parcheado: $f"
-          done
-          find flutter/lib -name "*.dart" | xargs grep -l "rs-ny.rustdesk.com" 2>/dev/null | while read f; do
+            echo "Parcheado rs: $f"
+          done || true
+          grep -rl "rs-ny.rustdesk.com" --include="*.dart" flutter/lib 2>/dev/null | while IFS= read -r f; do
             sed -i "s|rs-ny.rustdesk.com|$SERVER|g" "$f"
             echo "Parcheado dart: $f"
-          done
+          done || true
+          echo "Inyeccion completada"
 
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
