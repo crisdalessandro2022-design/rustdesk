@@ -69,30 +69,47 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Inject DYA Remote server configuration
-        shell: bash
-        run: |
-          SERVER="${{ secrets.RENDEZVOUS_SERVER }}"
-          KEY="${{ secrets.RS_PUB_KEY }}"
-          echo "Injecting server: $SERVER"
-          # Patch Cargo.toml rendezvous server
-          find . -name "*.rs" | xargs grep -l "rs-ny.rustdesk.com" 2>/dev/null | while read f; do
-            sed -i "s|rs-ny.rustdesk.com|$SERVER|g" "$f"
-            echo "Patched: $f"
-          done
-          # Patch hbb_common config
-          find . -name "*.rs" | xargs grep -l "rendezvous_server\b" 2>/dev/null | head -5
-          # Patch flutter dart files
-          find flutter/lib -name "*.dart" | xargs grep -l "rustdesk.com\|rendezvous" 2>/dev/null | while read f; do
-            sed -i "s|rs-ny.rustdesk.com|$SERVER|g" "$f"
-            echo "Patched dart: $f"
-          done
-
       - name: Restore bridge files
         uses: actions/download-artifact@master
         with:
           name: bridge-artifact
           path: ./
+
+      - name: Verify and fix bridge files
+        shell: bash
+        run: |
+          echo "=== Looking for bridge files ==="
+          find . -name "*bridge*" -o -name "*generated*" 2>/dev/null | grep -v ".git" | head -20
+          echo "=== flutter/lib contents ==="
+          ls flutter/lib/ | head -20
+          # Copy bridge file to correct location if needed
+          if [ ! -f "flutter/lib/generated_bridge.dart" ]; then
+            echo "generated_bridge.dart not found, searching..."
+            BRIDGE=$(find . -name "generated_bridge.dart" 2>/dev/null | head -1)
+            if [ -n "$BRIDGE" ]; then
+              cp "$BRIDGE" flutter/lib/generated_bridge.dart
+              echo "Copied from: $BRIDGE"
+            else
+              echo "ERROR: generated_bridge.dart not found anywhere!"
+              find . -name "*.dart" | xargs grep -l "RustdeskImpl" 2>/dev/null | head -5
+            fi
+          else
+            echo "generated_bridge.dart found OK"
+          fi
+
+      - name: Inject DYA Remote server configuration
+        shell: bash
+        run: |
+          SERVER="${{ secrets.RENDEZVOUS_SERVER }}"
+          echo "Injecting server: $SERVER"
+          find . -name "*.rs" | xargs grep -l "rs-ny.rustdesk.com" 2>/dev/null | while read f; do
+            sed -i "s|rs-ny.rustdesk.com|$SERVER|g" "$f"
+            echo "Patched: $f"
+          done
+          find flutter/lib -name "*.dart" | xargs grep -l "rs-ny.rustdesk.com" 2>/dev/null | while read f; do
+            sed -i "s|rs-ny.rustdesk.com|$SERVER|g" "$f"
+            echo "Patched dart: $f"
+          done
 
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
