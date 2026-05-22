@@ -82,7 +82,6 @@ jobs:
           find . -name "*bridge*" -o -name "*generated*" 2>/dev/null | grep -v ".git" | head -20
           echo "=== flutter/lib contents ==="
           ls flutter/lib/ | head -20
-          # Copy bridge file to correct location if needed
           if [ ! -f "flutter/lib/generated_bridge.dart" ]; then
             echo "generated_bridge.dart not found, searching..."
             BRIDGE=$(find . -name "generated_bridge.dart" 2>/dev/null | head -1)
@@ -91,7 +90,6 @@ jobs:
               echo "Copied from: $BRIDGE"
             else
               echo "ERROR: generated_bridge.dart not found anywhere!"
-              find . -name "*.dart" | xargs grep -l "RustdeskImpl" 2>/dev/null | head -5
             fi
           else
             echo "generated_bridge.dart found OK"
@@ -174,6 +172,17 @@ jobs:
           fi
           head -n 100 "${VCPKG_ROOT}/buildtrees/ffmpeg/build-${{ matrix.job.vcpkg-triplet }}-rel-out.log" || true
         shell: bash
+
+      - name: Generate bridge locally
+        shell: bash
+        run: |
+          cargo install flutter_rust_bridge_codegen --version 1.80.1 --locked 2>/dev/null || true
+          flutter_rust_bridge_codegen \
+            --rust-input src/flutter_ffi.rs \
+            --dart-output flutter/lib/generated_bridge.dart \
+            --dart-decl-output flutter/lib/bridge_definitions.dart \
+            --skip-add-mod-to-lib || true
+          ls -la flutter/lib/generated_bridge.dart 2>/dev/null || echo "Still not generated"
 
       - name: Build rustdesk
         run: |
